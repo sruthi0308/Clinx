@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#061225] text-[#F4F7FC]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinX — AI Medical Education Platform</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            base: '#061225',
+                            deep: '#0B1930',
+                            card: '#101F36',
+                            border: '#1E2F4D',
+                            light: '#182A48'
+                        },
+                        electric: '#3B82F6',
+                        cyan: '#48D9FF',
+                        silver: '#A8B5C7'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Custom CSS for glassmorphism and animations -->
+    <style>
+        body { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; background-color: #061225; color: #F4F7FC; overflow-x: hidden; }
+        .glass-panel { background: rgba(16, 31, 54, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.18); }
+        .glass-card { background: #101F36; border: 1px solid #1E2F4D; }
+        .glass-card:hover { border-color: rgba(72, 217, 255, 0.4); box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+        .gradient-text { background: linear-gradient(135deg, #48D9FF 0%, #3B82F6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glow-cyan { box-shadow: 0 0 25px rgba(72, 217, 255, 0.35); }
+        .glow-blue { box-shadow: 0 0 25px rgba(59, 130, 246, 0.35); }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #061225; }
+        ::-webkit-scrollbar-thumb { background: #1E2F4D; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
+        /* Animations */
+        @keyframes pulseBeam {
+            0%, 100% { opacity: 0.2; transform: scaleX(0.8); }
+            50% { opacity: 0.9; transform: scaleX(1.1); }
+        }
+        .animate-beam { animation: pulseBeam 3s infinite ease-in-out; }
+        .flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
+        .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back { backface-visibility: hidden; }
+        .flashcard-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased">
+
+    <!-- ==================== CINEMATIC OPENING SCREEN ==================== -->
+    <div id="splash-screen" class="fixed inset-0 z-50 bg-[#061225] flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="relative w-full max-w-lg flex flex-col items-center">
+            <div class="w-full h-1 bg-gradient-to-r from-transparent via-cyan to-transparent animate-beam mb-8"></div>
+            <div id="splash-logo-container" class="opacity-0 transition-all duration-1000 transform translate-y-4 text-center">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-navy-deep border border-cyan/30 text-cyan text-4xl mb-4 glow-cyan">
+                    <i class="fa-solid fa-dna"></i>
+                </div>
+                <h1 class="text-5xl font-extrabold tracking-wider text-white">Clin<span class="text-cyan">X</span></h1>
+                <p class="text-silver mt-3 font-medium tracking-wide text-sm">THINK LIKE YOU. PROTECT LIKE AI.</p>
+            </div>
+        </div>
+        <button onclick="skipSplash()" class="absolute bottom-8 text-xs text-silver/60 hover:text-cyan transition-colors">Skip Intro <i class="fa-solid fa-forward ml-1"></i></button>
+    </div>
+
+    <!-- ==================== AUTHENTICATION SCREEN ==================== -->
+    <div id="auth-screen" class="hidden min-h-screen bg-[#061225] flex items-center justify-center p-4 relative overflow-hidden">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-electric/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan/10 rounded-full blur-3xl"></div>
+        
+        <div class="w-full max-w-md glass-panel rounded-2xl p-8 relative z-10 border border-navy-border shadow-2xl">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-navy-deep border border-cyan/40 text-cyan text-2xl mb-3 glow-cyan">
+                    <i class="fa-solid fa-stethoscope"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white">Student Portal Access</h2>
+                <p class="text-xs text-silver mt-1">AI-Powered Clinical Training Environment</p>
+            </div>
+
+            <div id="login-error" class="hidden mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i> <span id="login-error-text">Invalid Credentials</span>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-silver mb-1.5">STUDENT ID / EMAIL</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-id-card absolute left-3.5 top-3.5 text-silver text-sm"></i>
+                        <input type="text" id="login-id" required value="STU-98231" placeholder="STU-98231" class="w-full bg-navy-deep border border-navy-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-silver mb-1.5">PASSWORD</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-silver text-sm"></i>
+                        <input type="password" id="login-password" required value="clinX2026!" placeholder="••••••••" class="w-full bg-navy-deep border border-navy-border rounded-lg pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-cyan">
+                        <button type="button" onclick="togglePassword()" class="absolute right-3.5 top-3 text-silver hover:text-white text-xs">
+                            <i id="password-toggle-icon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center text-silver cursor-pointer">
+                        <input type="checkbox" id="remember-me" checked class="rounded border-navy-border bg-navy-deep text-cyan focus:ring-0 mr-2"> Remember Me
+                    </label>
+                    <a href="#" onclick="alert('Demo Mode: Use pre-filled credentials STU-98231 / clinX2026!')" class="text-cyan hover:underline">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-lg bg-gradient-to-r from-electric to-cyan text-white font-bold text-sm hover:opacity-90 transition-all glow-blue flex items-center justify-center">
+                    <span>SIGN IN TO CLINX</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-navy-border/60 text-center">
+                <button type="button" onclick="fillDemoCredentials()" class="text-xs text-cyan/80 hover:text-cyan bg-cyan/10 px-3 py-1.5 rounded-full border border-cyan/20">
+                    <i class="fa-solid fa-bolt mr-1"></i> Quick Fill Demo Student Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN APPLICATION APP INTERFACE ==================== -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Persistent Top Navigation -->
+        <header class="h-16 bg-navy-deep border-b border-navy-border flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-silver hover:text-white text-lg">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="flex items-center space-x-2 cursor-pointer" onclick="navigateTo('home')">
+                    <div class="w-9 h-9 rounded-lg bg-electric/20 border border-cyan/40 text-cyan flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-dna"></i>
+                    </div>
+                    <span class="text-xl font-black text-white tracking-wider">Clin<span class="text-cyan">X</span></span>
+                </div>
+                <div class="hidden md:flex items-center bg-navy-base border border-navy-border px-2.5 py-1 rounded-full text-xs text-green-400 ml-4">
+                    <span class="w-2 h-2 rounded-full bg-green-400 animate-ping mr-2"></span> System Online
+                </div>
+            </div>
+
+            <!-- Global Top Metrics & Student Avatar -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden sm:flex items-center space-x-3 bg-navy-card px-3 py-1.5 rounded-lg border border-navy-border text-xs">
+                    <div class="flex items-center text-amber-400">
+                        <i class="fa-solid fa-fire mr-1"></i> <span id="nav-streak">12 Days</span>
+                    </div>
+                    <div class="w-px h-3 bg-navy-border"></div>
+                    <div class="flex items-center text-cyan">
+                        <i class="fa-solid fa-award mr-1"></i> <span id="nav-points">2,450 XP</span>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <button onclick="toggleNotifications()" class="relative p-2 text-silver hover:text-white rounded-lg hover:bg-navy-card">
+                        <i class="fa-regular fa-bell text-lg"></i>
+                        <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan"></span>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2 pl-2 border-l border-navy-border">
+                    <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=120" alt="Avatar" class="w-8 h-8 rounded-full border border-cyan object-cover">
+                    <div class="hidden xl:block text-left">
+                        <p class="text-xs font-bold text-white leading-none">Dr. Alex Rivera</p>
+                        <p class="text-[10px] text-silver leading-tight mt-0.5">MS-3 Clinical Resident</p>
+                    </div>
+                    <button onclick="logout()" class="text-silver hover:text-red-400 text-sm ml-2" title="Logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar Navigation -->
+            <aside id="sidebar" class="w-64 bg-navy-deep border-r border-navy-border flex flex-col justify-between hidden lg:flex shrink-0">
+                <div class="py-4 space-y-1 px-3 overflow-y-auto">
+                    <div class="text-[10px] font-extrabold text-silver px-3 mb-2 tracking-wider uppercase">Main Menu</div>
+                    <button onclick="navigateTo('home')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-cyan bg-electric/10 border border-electric/20" data-page="home">
+                        <i class="fa-solid fa-chart-line w-6"></i> Dashboard
+                    </button>
+                    <button onclick="navigateTo('learn')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="learn">
+                        <i class="fa-solid fa-book-medical w-6"></i> Learn (350 Cases)
+                    </button>
+                    <button onclick="navigateTo('record')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="record">
+                        <i class="fa-solid fa-video w-6"></i> Record & Analyse
+                    </button>
+                    <button onclick="navigateTo('vr')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="vr">
+                        <i class="fa-solid fa-vr-cardboard w-6"></i> VR Simulation (20 Cases)
+                    </button>
+                    <button onclick="navigateTo('anatomy')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="anatomy">
+                        <i class="fa-solid fa-cube w-6"></i> 3D Anatomy Explorer
+                    </button>
+
+                    <div class="text-[10px] font-extrabold text-silver px-3 mt-6 mb-2 tracking-wider uppercase">Tools & Progress</div>
+                    <button onclick="navigateTo('notes')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="notes">
+                        <i class="fa-solid fa-note-sticky w-6"></i> My Notes & Flashcards
+                    </button>
+                    <button onclick="navigateTo('mentor')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="mentor">
+                        <i class="fa-solid fa-robot w-6"></i> AI Mentor Hub
+                    </button>
+                    <button onclick="navigateTo('skilltree')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="skilltree">
+                        <i class="fa-solid fa-sitemap w-6"></i> Skill Tree
+                    </button>
+                    <button onclick="navigateTo('progress')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="progress">
+                        <i class="fa-solid fa-chart-pie w-6"></i> Progress & Analytics
+                    </button>
+                    <button onclick="navigateTo('certificates')" class="nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card" data-page="certificates">
+                        <i class="fa-solid fa-file-certificate w-6"></i> Certificates
+                    </button>
+                </div>
+
+                <div class="p-3 border-t border-navy-border">
+                    <div class="bg-navy-card p-3 rounded-xl border border-navy-border text-center">
+                        <p class="text-[11px] text-silver font-semibold">Clinical Journey Stage</p>
+                        <p class="text-xs font-bold text-cyan mt-0.5">Year 3 — Residency Prep</p>
+                        <div class="w-full bg-navy-base h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div class="bg-gradient-to-r from-electric to-cyan h-full w-[42%]"></div>
+                        </div>
+                        <p class="text-[10px] text-silver/70 mt-1">42 of 350 Cases Mastered</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content Container -->
+            <main id="main-content" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+
+                <!-- SECTION 1: HOME DASHBOARD -->
+                <section id="page-home" class="page-view space-y-6">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card p-6 rounded-2xl relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-cyan/10 rounded-full blur-2xl"></div>
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-cyan bg-cyan/10 px-3 py-1 rounded-full border border-cyan/20">Welcome Back</span>
+                            <h1 class="text-2xl lg:text-3xl font-extrabold text-white mt-2">Ready for today's clinical rounds, Dr. Rivera?</h1>
+                            <p class="text-sm text-silver mt-1 max-w-2xl">Your AI diagnostic accuracy is up +14% this week. Keep up the daily streak to unlock your Emergency Medicine Certification.</p>
+                        </div>
+                        <div class="flex items-center space-x-3 shrink-0">
+                            <button onclick="navigateTo('learn')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-electric to-cyan text-white font-bold text-xs hover:opacity-90 shadow-lg glow-cyan flex items-center">
+                                <i class="fa-solid fa-play mr-2"></i> Resume Critical Case
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="glass-card p-4 rounded-xl">
+                            <div class="flex justify-between items-start text-silver">
+                                <span class="text-xs font-semibold">Streak</span>
+                                <i class="fa-solid fa-fire text-amber-400"></i>
+                            </div>
+                            <p class="text-2xl font-black text-white mt-2">12 <span class="text-xs text-silver font-normal">Days</span></p>
+                            <p class="text-[10px] text-green-400 mt-1"><i class="fa-solid fa-caret-up"></i> Best: 18 days</p>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl">
+                            <div class="flex justify-between items-start text-silver">
+                                <span class="text-xs font-semibold">Cases Completed</span>
+                                <i class="fa-solid fa-stethoscope text-cyan"></i>
+                            </div>
+                            <p class="text-2xl font-black text-white mt-2">42 <span class="text-xs text-silver font-normal">/ 350</span></p>
+                            <p class="text-[10px] text-cyan mt-1">12% Pathway Finish</p>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl">
+                            <div class="flex justify-between items-start text-silver">
+                                <span class="text-xs font-semibold">Avg Assessment Score</span>
+                                <i class="fa-solid fa-bullseye text-electric"></i>
+                            </div>
+                            <p class="text-2xl font-black text-white mt-2">88.4%</p>
+                            <p class="text-[10px] text-green-400 mt-1"><i class="fa-solid fa-arrow-up"></i> +3.2% vs last week</p>
+                        </div>
+                        <div class="glass-card p-4 rounded-xl">
+                            <div class="flex justify-between items-start text-silver">
+                                <span class="text-xs font-semibold">VR & Recordings</span>
+                                <i class="fa-solid fa-video text-purple-400"></i>
+                            </div>
+                            <p class="text-2xl font-black text-white mt-2">18 <span class="text-xs text-silver font-normal">Sessions</span></p>
+                            <p class="text-[10px] text-silver mt-1">6 VR / 12 Camera</p>
+                        </div>
+                    </div>
+
+                    <!-- Journey Progress & Next Milestone -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 glass-card p-5 rounded-xl space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-white flex items-center"><i class="fa-solid fa-map-location-dot text-cyan mr-2"></i> 350-Case Clinical Journey Progress</h3>
+                                <span class="text-xs text-cyan font-bold">42 / 350 Cases</span>
+                            </div>
+                            <div class="w-full bg-navy-deep h-3 rounded-full overflow-hidden border border-navy-border">
+                                <div class="bg-gradient-to-r from-electric via-cyan to-green-400 h-full w-[12%] transition-all duration-1000"></div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-center text-xs pt-2">
+                                <div class="p-2 rounded bg-navy-deep/60 border border-navy-border">
+                                    <p class="text-silver text-[10px]">Basic Cases</p>
+                                    <p class="font-bold text-green-400 mt-0.5">28 / 100</p>
+                                </div>
+                                <div class="p-2 rounded bg-navy-deep/60 border border-navy-border">
+                                    <p class="text-silver text-[10px]">Intermediate Cases</p>
+                                    <p class="font-bold text-amber-400 mt-0.5">11 / 150</p>
+                                </div>
+                                <div class="p-2 rounded bg-navy-deep/60 border border-navy-border">
+                                    <p class="text-silver text-[10px]">High-Risk / Critical</p>
+                                    <p class="font-bold text-red-400 mt-0.5">3 / 100</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-xl flex flex-col justify-between">
+                            <div>
+                                <span class="text-[10px] font-bold text-cyan uppercase tracking-wider">Next Certificate Milestone</span>
+                                <h4 class="text-base font-bold text-white mt-1">Advanced Cardiology Simulation</h4>
+                                <p class="text-xs text-silver mt-1">Complete 3 more STEMI & Arrhythmia cases to unlock your official verified certificate.</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-navy-border flex items-center justify-between">
+                                <span class="text-xs text-silver">Progress: 7/10 Cases</span>
+                                <button onclick="navigateTo('certificates')" class="text-xs text-cyan hover:underline font-semibold">View All Certs <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recommended Critical Cases -->
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-white">Recommended Critical Cases For You</h3>
+                            <button onclick="navigateTo('learn')" class="text-xs text-cyan hover:underline">Explore All 350 Cases <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="home-cases-container">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 2: LEARN - 350 MEDICAL CASES -->
+                <section id="page-learn" class="page-view hidden space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white">350 Clinical Medical Case Library</h1>
+                            <p class="text-xs text-silver mt-1">Comprehensive simulation database for emergency, surgery, cardiology, and rare differential cases.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-silver bg-navy-card px-3 py-1.5 rounded-lg border border-navy-border">Total Filtered: <strong id="case-count-display" class="text-cyan">0</strong> Cases</span>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filters Bar -->
+                    <div class="glass-card p-4 rounded-xl space-y-3">
+                        <div class="flex flex-col md:flex-row gap-3">
+                            <div class="relative flex-1">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-silver text-sm"></i>
+                                <input type="text" id="case-search" oninput="filterCases()" placeholder="Search by disease, symptoms, Case ID, or keywords..." class="w-full bg-navy-deep border border-navy-border rounded-lg pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-cyan">
+                            </div>
+                            <button onclick="resetCaseFilters()" class="px-3 py-2 rounded-lg bg-navy-deep border border-navy-border text-silver hover:text-white text-xs">Reset Filters</button>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                            <select id="filter-specialty" onchange="filterCases()" class="bg-navy-deep border border-navy-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan">
+                                <option value="all">All Specialties</option>
+                                <option value="Cardiology">Cardiology</option>
+                                <option value="Neurology">Neurology</option>
+                                <option value="Emergency Medicine">Emergency Medicine</option>
+                                <option value="General Surgery">General Surgery</option>
+                                <option value="Paediatrics">Paediatrics</option>
+                                <option value="Respiratory">Respiratory</option>
+                            </select>
+
+                            <select id="filter-difficulty" onchange="filterCases()" class="bg-navy-deep border border-navy-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan">
+                                <option value="all">All Difficulties</option>
+                                <option value="Basic">Basic</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="High-Risk">High-Risk / Critical</option>
+                            </select>
+
+                            <select id="filter-category" onchange="filterCases()" class="bg-navy-deep border border-navy-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan">
+                                <option value="all">All Categories</option>
+                                <option value="Critical">Critical Cases</option>
+                                <option value="Rare">Rare Cases</option>
+                                <option value="Time-Critical">Time-Critical</option>
+                                <option value="One-in-a-Million">One-in-a-Million</option>
+                            </select>
+
+                            <select id="filter-status" onchange="filterCases()" class="bg-navy-deep border border-navy-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan">
+                                <option value="all">All Statuses</option>
+                                <option value="Completed">Mastered</option>
+                                <option value="Pending">Incomplete</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Cases Grid -->
+                    <div id="cases-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- CASE DETAIL / SIMULATION MODAL -->
+                <div id="case-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+                    <div class="glass-card w-full max-w-5xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden border border-navy-border">
+                        <div class="p-4 bg-navy-deep border-b border-navy-border flex justify-between items-center shrink-0">
+                            <div class="flex items-center space-x-3">
+                                <span id="modal-case-id" class="text-xs font-mono font-bold bg-electric/20 text-cyan px-2.5 py-1 rounded">CASE-001</span>
+                                <h3 id="modal-case-title" class="text-base font-bold text-white">Acute Inferior Wall Myocardial Infarction</h3>
+                            </div>
+                            <button onclick="closeCaseModal()" class="text-silver hover:text-white p-2">
+                                <i class="fa-solid fa-xmark text-lg"></i>
+                            </button>
+                        </div>
+
+                        <!-- Modal Tabs -->
+                        <div class="flex border-b border-navy-border bg-navy-base text-xs font-semibold shrink-0">
+                            <button onclick="switchModalTab('overview')" class="modal-tab-btn px-4 py-3 text-cyan border-b-2 border-cyan" data-mtab="overview">Case File</button>
+                            <button onclick="switchModalTab('patient-sim')" class="modal-tab-btn px-4 py-3 text-silver hover:text-white" data-mtab="patient-sim">Interactive AI Patient Simulation</button>
+                            <button onclick="switchModalTab('mystery')" class="modal-tab-btn px-4 py-3 text-silver hover:text-white" data-mtab="mystery">Mystery Diagnosis Mode</button>
+                            <button onclick="switchModalTab('test')" class="modal-tab-btn px-4 py-3 text-silver hover:text-white" data-mtab="test">10-MCQ Assessment</button>
+                            <button onclick="switchModalTab('tutorial')" class="modal-tab-btn px-4 py-3 text-silver hover:text-white" data-mtab="tutorial">Expert Tutorial & Refs</button>
+                        </div>
+
+                        <!-- Tab Content Views -->
+                        <div class="p-6 overflow-y-auto flex-1 space-y-6 text-xs text-silver">
+                            <!-- TAB 1: OVERVIEW -->
+                            <div id="mtab-overview" class="modal-tab-view space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border">
+                                        <p class="font-bold text-white mb-2"><i class="fa-solid fa-user-doctor text-cyan mr-1.5"></i> Patient Profile</p>
+                                        <p><strong>Identity:</strong> <span id="modal-patient-name">Fictional Patient</span></p>
+                                        <p><strong>Age/Gender:</strong> <span id="modal-patient-age">58M</span></p>
+                                        <p><strong>Complaint:</strong> <span id="modal-patient-complaint">Crushing retrosternal chest pain radiating to left jaw.</span></p>
+                                    </div>
+                                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border">
+                                        <p class="font-bold text-white mb-2"><i class="fa-solid fa-heart-pulse text-red-400 mr-1.5"></i> Initial Vitals</p>
+                                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                            <div>BP: <strong id="modal-vitals-bp" class="text-white">140/90 mmHg</strong></div>
+                                            <div>HR: <strong id="modal-vitals-hr" class="text-white">102 bpm</strong></div>
+                                            <div>SpO2: <strong id="modal-vitals-spo2" class="text-white">94%</strong></div>
+                                            <div>Temp: <strong id="modal-vitals-temp" class="text-white">37.1 °C</strong></div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border flex flex-col justify-between">
+                                        <div>
+                                            <p class="font-bold text-white mb-1"><i class="fa-solid fa-graduation-cap text-electric mr-1.5"></i> Learning Goal</p>
+                                            <p id="modal-learning-goal">Recognize ECG ST-elevations in II, III, aVF and immediately order antiplatelet therapy.</p>
+                                        </div>
+                                        <button onclick="switchModalTab('patient-sim')" class="mt-3 w-full py-2 rounded bg-electric text-white font-bold text-center">Start Simulation Mode</button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-navy-deep p-4 rounded-xl border border-navy-border space-y-2">
+                                    <p class="font-bold text-white">Full History & Clinical Scenario Description</p>
+                                    <p id="modal-full-history" class="leading-relaxed">Patient reports sudden onset of severe substernal pressure while at rest 2 hours ago. Accompanied by diaphoresis and nausea. No prior history of CAD, but smokes 1 pack/day and has unmanaged hypertension.</p>
+                                </div>
+                            </div>
+
+                            <!-- TAB 2: AI PATIENT SIMULATION -->
+                            <div id="mtab-patient-sim" class="modal-tab-view hidden space-y-4">
+                                <div class="bg-navy-deep p-4 rounded-xl border border-navy-border flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-full bg-cyan/20 border border-cyan flex items-center justify-center text-cyan text-lg">
+                                            <i class="fa-solid fa-hospital-user"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-bold text-white text-sm" id="sim-patient-title">Simulated Patient Bedside</p>
+                                            <p class="text-[10px] text-green-400">Status: Stable • Fictional Educational Avatar</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-3 text-[11px] bg-navy-base px-3 py-1.5 rounded-lg border border-navy-border">
+                                        <span>BP: <strong id="sim-bp" class="text-white">138/88</strong></span>
+                                        <span>HR: <strong id="sim-hr" class="text-red-400 font-bold">104 bpm</strong></span>
+                                        <span>SpO2: <strong id="sim-spo2" class="text-cyan font-bold">95%</strong></span>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div class="lg:col-span-2 bg-navy-deep p-4 rounded-xl border border-navy-border h-64 overflow-y-auto space-y-3" id="sim-chat-box">
+                                        <div class="bg-navy-base p-3 rounded-lg border border-navy-border text-silver">
+                                            <p class="font-semibold text-cyan text-[11px]"><i class="fa-solid fa-user-injured mr-1"></i> Patient:</p>
+                                            <p class="mt-1">"Doctor, my chest feels like an elephant is sitting on it... Is it bad?"</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border space-y-3">
+                                        <p class="font-bold text-white">Clinical Actions</p>
+                                        <div class="space-y-2">
+                                            <button onclick="sendSimAction('ask_radiation')" class="w-full text-left p-2 rounded bg-navy-base hover:bg-navy-card border border-navy-border text-silver hover:text-white transition">
+                                                <i class="fa-solid fa-comments text-cyan mr-1.5"></i> Ask: "Does the pain radiate?"
+                                            </button>
+                                            <button onclick="sendSimAction('order_ecg')" class="w-full text-left p-2 rounded bg-navy-base hover:bg-navy-card border border-navy-border text-silver hover:text-white transition">
+                                                <i class="fa-solid fa-heart-pulse text-electric mr-1.5"></i> Order Stat 12-Lead ECG
+                                            </button>
+                                            <button onclick="sendSimAction('administer_aspirin')" class="w-full text-left p-2 rounded bg-navy-base hover:bg-navy-card border border-navy-border text-silver hover:text-white transition">
+                                                <i class="fa-solid fa-pills text-amber-400 mr-1.5"></i> Administer Aspirin 325mg Chewed
+                                            </button>
+                                            <button onclick="sendSimAction('order_troponin')" class="w-full text-left p-2 rounded bg-navy-base hover:bg-navy-card border border-navy-border text-silver hover:text-white transition">
+                                                <i class="fa-solid fa-vial text-purple-400 mr-1.5"></i> Order High-Sensitivity Troponin I
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 3: MYSTERY DIAGNOSIS -->
+                            <div id="mtab-mystery" class="modal-tab-view hidden space-y-4">
+                                <div class="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-amber-300 text-xs flex items-center">
+                                    <i class="fa-solid fa-mask mr-2 text-base"></i> Mystery Mode: Diagnosis name hidden. Process clinical clues sequentially to unmask the case.
+                                </div>
+                                <div id="mystery-step-1" class="bg-navy-deep p-4 rounded-xl border border-navy-border space-y-2">
+                                    <span class="text-[10px] font-bold text-cyan bg-cyan/10 px-2 py-0.5 rounded">Clue Stage 1/3 — History & Examination</span>
+                                    <p class="text-white font-semibold">Patient presented with acute fatigue, dyspnea on exertion, and bilateral ankle edema over 3 weeks.</p>
+                                    <button onclick="revealMysteryStep(2)" class="mt-2 px-3 py-1.5 rounded bg-electric text-white font-semibold">Unmask Lab Findings & ECG <i class="fa-solid fa-eye ml-1"></i></button>
+                                </div>
+
+                                <div id="mystery-step-2" class="hidden bg-navy-deep p-4 rounded-xl border border-navy-border space-y-2">
+                                    <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">Clue Stage 2/3 — Key Diagnostics</span>
+                                    <p class="text-white">BNP level: 1,450 pg/mL (Elevated). Echocardiogram reveals LVEF 32% with diffuse hypokinesis.</p>
+                                    <button onclick="revealMysteryStep(3)" class="mt-2 px-3 py-1.5 rounded bg-cyan text-navy-base font-bold">Submit Final Differential</button>
+                                </div>
+
+                                <div id="mystery-step-3" class="hidden bg-navy-deep p-4 rounded-xl border border-navy-border space-y-3">
+                                    <p class="font-bold text-white">Select Your Primary Diagnosis Choice:</p>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center space-x-2 bg-navy-base p-2.5 rounded border border-navy-border cursor-pointer">
+                                            <input type="radio" name="mystery-choice" value="wrong" class="text-cyan">
+                                            <span>Acute Pulmonary Embolism</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 bg-navy-base p-2.5 rounded border border-navy-border cursor-pointer">
+                                            <input type="radio" name="mystery-choice" value="correct" class="text-cyan">
+                                            <span>Decompensated Systolic Heart Failure (HFrEF)</span>
+                                        </label>
+                                    </div>
+                                    <button onclick="checkMysteryDiagnosis()" class="px-4 py-2 bg-green-500 text-white font-bold rounded">Submit for Debrief & Score</button>
+                                </div>
+                            </div>
+
+                            <!-- TAB 4: 10-MCQ TEST ENGINE -->
+                            <div id="mtab-test" class="modal-tab-view hidden space-y-4">
+                                <div class="flex justify-between items-center bg-navy-deep p-3 rounded-xl border border-navy-border">
+                                    <span class="font-bold text-white">10-Question Knowledge Assessment</span>
+                                    <span class="text-xs text-silver">Passing Score: <strong class="text-green-400">80% (8/10)</strong></span>
+                                </div>
+
+                                <div id="mcq-container" class="space-y-4">
+                                    <!-- Dynamic 10 Questions injected by JS -->
+                                </div>
+
+                                <button onclick="submitMCQTest()" class="w-full py-3 rounded-xl bg-gradient-to-r from-electric to-cyan text-white font-bold text-sm shadow-lg">
+                                    Submit Test Answers for Evaluation
+                                </button>
+                                <div id="test-results-box" class="hidden p-4 rounded-xl bg-navy-deep border border-navy-border text-center space-y-2"></div>
+                            </div>
+
+                            <!-- TAB 5: TUTORIAL & REFERENCES -->
+                            <div id="mtab-tutorial" class="modal-tab-view hidden space-y-4">
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div class="lg:col-span-2 space-y-3">
+                                        <!-- Simulated Video Player -->
+                                        <div class="relative bg-black rounded-xl overflow-hidden aspect-video border border-navy-border flex items-center justify-center">
+                                            <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover opacity-60">
+                                            <button onclick="alert('Playing Expert Video Tutorial by Dr. Sarah Jenkins, MD, FACC')" class="absolute w-16 h-16 rounded-full bg-cyan/90 text-navy-base flex items-center justify-center text-2xl font-bold shadow-2xl hover:scale-105 transition">
+                                                <i class="fa-solid fa-play ml-1"></i>
+                                            </button>
+                                            <div class="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded text-[10px] text-white">
+                                                Video Tutorial: Acute Coronary Management (14:20)
+                                            </div>
+                                        </div>
+                                        <p class="font-bold text-white">Lecturer: Dr. Sarah Jenkins, MD, FACC</p>
+                                        <p class="text-silver">Senior Cardiology Consultant • Johns Hopkins Medicine</p>
+                                    </div>
+
+                                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border space-y-3">
+                                        <p class="font-bold text-white"><i class="fa-solid fa-bookmark text-cyan mr-1.5"></i> Verified Medical References</p>
+                                        <ul class="space-y-2 text-[11px] text-silver">
+                                            <li class="p-2 bg-navy-base rounded border border-navy-border">
+                                                <strong class="text-white block">2023 AHA/ACC Guidelines for STEMI</strong>
+                                                <a href="https://www.ahajournals.org" target="_blank" class="text-cyan hover:underline">ahajournals.org <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>
+                                            </li>
+                                            <li class="p-2 bg-navy-base rounded border border-navy-border">
+                                                <strong class="text-white block">ESC Clinical Practice Guidelines in Cardiology</strong>
+                                                <a href="https://www.escardio.org" target="_blank" class="text-cyan hover:underline">escardio.org <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: RECORD & ANALYSE -->
+                <section id="page-record" class="page-view hidden space-y-6">
+                    <div>
+                        <h1 class="text-2xl font-extrabold text-white">Record & Analyse Simulated Rounds</h1>
+                        <p class="text-xs text-silver mt-1">Record your clinical presentation using your device camera, then run AI performance analysis.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left: Live Recorder -->
+                        <div class="lg:col-span-2 glass-card p-5 rounded-2xl space-y-4">
+                            <div class="relative bg-black rounded-xl overflow-hidden aspect-video border border-navy-border flex items-center justify-center">
+                                <video id="webcam-preview" autoplay muted playsinline class="w-full h-full object-cover hidden"></video>
+                                <div id="webcam-placeholder" class="text-center p-6 space-y-2">
+                                    <i class="fa-solid fa-video-slash text-4xl text-silver/40"></i>
+                                    <p class="text-xs text-silver">Camera feed paused or permission pending.</p>
+                                </div>
+
+                                <div id="rec-indicator" class="hidden absolute top-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center shadow-lg">
+                                    <span class="w-2 h-2 rounded-full bg-white animate-ping mr-2"></span> REC <span id="rec-timer" class="ml-2 font-mono">00:00</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3 bg-navy-deep p-3 rounded-xl border border-navy-border">
+                                <div class="flex items-center space-x-2">
+                                    <button id="btn-start-rec" onclick="startWebcamRecording()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg flex items-center">
+                                        <i class="fa-solid fa-circle mr-2"></i> Start Recording
+                                    </button>
+                                    <button id="btn-stop-rec" onclick="stopWebcamRecording()" disabled class="px-4 py-2 bg-navy-base border border-navy-border text-silver font-bold text-xs rounded-lg flex items-center opacity-50">
+                                        <i class="fa-solid fa-square mr-2"></i> Stop & Save
+                                    </button>
+                                </div>
+                                <span class="text-xs text-silver" id="rec-status-text">Ready for capture</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Saved Recording Library -->
+                        <div class="glass-card p-5 rounded-2xl space-y-4">
+                            <h3 class="text-sm font-bold text-white flex items-center justify-between">
+                                <span><i class="fa-solid fa-[#3B82F6] fa-folder-open text-cyan mr-2"></i> Saved Practice Sessions</span>
+                                <span class="text-xs text-silver" id="recording-count">2 Saved</span>
+                            </h3>
+
+                            <div class="space-y-3" id="recordings-list">
+                                <div class="bg-navy-deep p-3 rounded-xl border border-navy-border flex items-center justify-between">
+                                    <div>
+                                        <p class="text-xs font-bold text-white">STEMI Patient Briefing</p>
+                                        <p class="text-[10px] text-silver mt-0.5">Recorded Oct 18 • 02:45 min</p>
+                                    </div>
+                                    <button onclick="runAiAnalysis('STEMI Patient Briefing')" class="px-2.5 py-1.5 rounded bg-cyan/10 border border-cyan/30 text-cyan font-bold text-[10px] hover:bg-cyan/20">
+                                        Analyse Session
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Output Box -->
+                    <div id="ai-analysis-modal" class="hidden glass-card p-6 rounded-2xl border border-cyan/30 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-base font-bold text-white flex items-center">
+                                <i class="fa-solid fa-robot text-cyan mr-2"></i> AI Performance Analysis Report
+                            </h3>
+                            <span class="text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30">Score: 92/100</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div class="bg-navy-deep p-3 rounded-xl border border-navy-border">
+                                <p class="font-bold text-green-400 mb-1"><i class="fa-solid fa-check mr-1"></i> Correct Checklist Steps</p>
+                                <ul class="space-y-1 text-silver">
+                                    <li>• Stated patient age & chief complaint clearly.</li>
+                                    <li>• Identified ST-elevation on ECG correctly.</li>
+                                    <li>• Ordered chewed Aspirin & Heparin heparinization.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-navy-deep p-3 rounded-xl border border-navy-border">
+                                <p class="font-bold text-amber-400 mb-1"><i class="fa-solid fa-exclamation-triangle mr-1"></i> Workflow Deviation</p>
+                                <ul class="space-y-1 text-silver">
+                                    <li>• Paused 8 seconds before verifying allergies.</li>
+                                    <li>• Could improve speed on Cath Lab notification call.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-navy-deep p-3 rounded-xl border border-navy-border">
+                                <p class="font-bold text-cyan mb-1"><i class="fa-solid fa-lightbulb mr-1"></i> AI Recommendation</p>
+                                <p class="text-silver">Excellent speech structure. Review Case CASE-088 on Posterior STEMI variants to sharpen differential diagnosis.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 4: VR SIMULATION (20 FEATURED CASES) -->
+                <section id="page-vr" class="page-view hidden space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white">VR Simulation Training (20 Scenarios)</h1>
+                            <p class="text-xs text-silver mt-1">Connect WebXR VR headset or launch 3D Interactive Desktop mode.</p>
+                        </div>
+
+                        <!-- VR Connection Widget -->
+                        <div class="bg-navy-card border border-navy-border p-3 rounded-xl flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-vr-cardboard text-cyan text-xl"></i>
+                                <div class="text-xs">
+                                    <p class="font-bold text-white">Headset Status</p>
+                                    <p id="vr-status-text" class="text-[10px] text-silver">WebXR Ready / Simulated</p>
+                                </div>
+                            </div>
+                            <button onclick="toggleVRConnection()" id="btn-vr-connect" class="px-3 py-1.5 rounded-lg bg-electric text-white font-bold text-xs hover:bg-electric/80">
+                                Connect VR
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="vr-cases-grid">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- SECTION 5: 3D ANATOMY EXPLORER -->
+                <section id="page-anatomy" class="page-view hidden space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white">3D Anatomy & Organ Explorer</h1>
+                            <p class="text-xs text-silver mt-1">Interactive 3D anatomical viewer rendered with Three.js. Rotate, examine, and explore key organ systems.</p>
+                        </div>
+                        <div class="flex space-x-2 text-xs">
+                            <button onclick="loadAnatomyModel('heart')" class="px-3 py-1.5 rounded bg-cyan/20 border border-cyan text-cyan font-bold">Heart</button>
+                            <button onclick="loadAnatomyModel('brain')" class="px-3 py-1.5 rounded bg-navy-card border border-navy-border text-silver hover:text-white">Brain</button>
+                            <button onclick="loadAnatomyModel('lungs')" class="px-3 py-1.5 rounded bg-navy-card border border-navy-border text-silver hover:text-white">Lungs</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 3D Canvas viewport -->
+                        <div class="lg:col-span-2 glass-card rounded-2xl overflow-hidden border border-navy-border h-96 relative">
+                            <div id="anatomy-canvas-container" class="w-full h-full bg-[#040B17]"></div>
+                            <div class="absolute bottom-3 left-3 bg-navy-deep/80 backdrop-blur px-3 py-1.5 rounded-lg border border-navy-border text-[11px] text-silver">
+                                <i class="fa-solid fa-hand-pointer mr-1 text-cyan"></i> Drag to rotate • Scroll to zoom
+                            </div>
+                        </div>
+
+                        <!-- Organ Information Panel -->
+                        <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+                            <div>
+                                <span class="text-[10px] font-bold text-cyan uppercase tracking-wider">Organ Focus</span>
+                                <h3 id="anatomy-organ-title" class="text-xl font-extrabold text-white mt-1">Cardiovascular System — Heart</h3>
+                                <p id="anatomy-organ-desc" class="text-xs text-silver mt-2 leading-relaxed">
+                                    The human heart is a four-chambered muscular organ pumping blood through the circulatory system. Key structures include left ventricle, coronary arteries, and AV valves.
+                                </p>
+                            </div>
+
+                            <div class="space-y-2 pt-4 border-t border-navy-border">
+                                <p class="text-xs font-bold text-white">Associated Clinical Cases:</p>
+                                <div class="space-y-1 text-xs">
+                                    <button onclick="navigateTo('learn')" class="w-full text-left p-2 rounded bg-navy-deep hover:bg-navy-card border border-navy-border text-cyan">
+                                        <i class="fa-solid fa-arrow-right text-[10px] mr-1"></i> CASE-001: Inferior Wall STEMI
+                                    </button>
+                                    <button onclick="navigateTo('learn')" class="w-full text-left p-2 rounded bg-navy-deep hover:bg-navy-card border border-navy-border text-cyan">
+                                        <i class="fa-solid fa-arrow-right text-[10px] mr-1"></i> CASE-014: Acute Mitral Regurgitation
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 6: MY NOTES & FLASHCARDS -->
+                <section id="page-notes" class="page-view hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white">My Notes & Spaced Repetition Flashcards</h1>
+                            <p class="text-xs text-silver mt-1">Review personal clinical notes and test your retention with flashcards.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Left: Rich Note Editor Simulator -->
+                        <div class="glass-card p-5 rounded-2xl space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-pen-to-square text-cyan mr-2"></i> Clinical Case Notebook</h3>
+                                <button onclick="saveCurrentNote()" class="px-3 py-1 rounded bg-cyan text-navy-base font-bold text-xs">Save Note</button>
+                            </div>
+
+                            <input type="text" id="note-title-input" value="Notes on STEMI vs NSTEMI Biomarker Kinetics" class="w-full bg-navy-deep border border-navy-border rounded-lg px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan">
+
+                            <textarea id="note-body-input" rows="8" class="w-full bg-navy-deep border border-navy-border rounded-lg p-3 text-xs text-silver focus:outline-none focus:border-cyan leading-relaxed" placeholder="Type clinical notes here...">
+Troponin I rises within 2-4 hours, peaks at 24 hours, and remains elevated for up to 10-14 days. 
+CK-MB is useful for re-infarction detection because it returns to baseline in 48-72 hours.
+Always verify aspirin allergy prior to administration.
+                            </textarea>
+
+                            <div class="flex items-center space-x-2 text-xs text-silver">
+                                <span>Tags:</span>
+                                <span class="bg-cyan/10 text-cyan px-2 py-0.5 rounded border border-cyan/20">Cardiology</span>
+                                <span class="bg-electric/10 text-electric px-2 py-0.5 rounded border border-electric/20">High Yield</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Interactive Flashcards -->
+                        <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-layer-group text-amber-400 mr-2"></i> Daily Spaced Repetition</h3>
+                                <span class="text-xs text-silver">Card <strong id="flashcard-index">1</strong> / 5</span>
+                            </div>
+
+                            <!-- Flashcard Flip Box -->
+                            <div id="flashcard-box" onclick="flipFlashcard()" class="flashcard cursor-pointer bg-navy-deep border border-navy-border rounded-xl h-48 p-6 flex flex-col items-center justify-center text-center relative shadow-inner">
+                                <div class="flashcard-inner w-full h-full flex flex-col items-center justify-center">
+                                    <div class="flashcard-front space-y-2">
+                                        <span class="text-[10px] uppercase font-bold text-cyan tracking-wider">Question (Click to flip)</span>
+                                        <p id="card-question" class="text-sm font-bold text-white">What is the gold standard biomarker for acute myocardial necrosis?</p>
+                                    </div>
+                                    <div class="flashcard-back absolute space-y-2">
+                                        <span class="text-[10px] uppercase font-bold text-green-400 tracking-wider">Answer</span>
+                                        <p id="card-answer" class="text-sm font-bold text-cyan">High-Sensitivity Cardiac Troponin I or T.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex space-x-3 text-xs font-bold">
+                                <button onclick="nextFlashcard(false)" class="flex-1 py-2.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20">
+                                    Needs Revision
+                                </button>
+                                <button onclick="nextFlashcard(true)" class="flex-1 py-2.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20">
+                                    Mark Remembered
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 7: AI MENTOR HUB -->
+                <section id="page-mentor" class="page-view hidden space-y-6">
+                    <div>
+                        <h1 class="text-2xl font-extrabold text-white">ClinX AI Clinical Mentor</h1>
+                        <p class="text-xs text-silver mt-1">24/7 AI tutor for differential diagnosis guidance, medical queries, and weakness analysis.</p>
+                    </div>
+
+                    <div class="glass-card rounded-2xl border border-navy-border overflow-hidden flex flex-col h-[550px]">
+                        <div class="p-4 bg-navy-deep border-b border-navy-border flex items-center space-x-3 shrink-0">
+                            <div class="w-9 h-9 rounded-full bg-cyan/20 border border-cyan text-cyan flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-white">Dr. ClinX AI — Clinical Advisor</p>
+                                <p class="text-[10px] text-green-400">Online • Powered by Medical Knowledge Base</p>
+                            </div>
+                        </div>
+
+                        <div id="mentor-chat-body" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+                            <div class="bg-navy-deep p-3 rounded-xl border border-navy-border max-w-lg text-silver space-y-1">
+                                <p class="text-cyan font-bold text-[10px]">Dr. ClinX AI:</p>
+                                <p>Greetings Dr. Rivera! Based on your recent test results, you scored 100% in Cardiology but missed 1 question on Neurological Stroke localization. Would you like me to explain MCA vs PCA stroke syndromes?</p>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-navy-deep border-t border-navy-border flex space-x-2 shrink-0">
+                            <input type="text" id="mentor-input" onkeypress="if(event.key==='Enter') sendMentorMessage()" placeholder="Ask Dr. ClinX any medical question or case query..." class="flex-1 bg-navy-base border border-navy-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan">
+                            <button onclick="sendMentorMessage()" class="px-4 py-2 bg-gradient-to-r from-electric to-cyan text-white font-bold text-xs rounded-lg shadow-lg">
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 8: SKILL TREE -->
+                <section id="page-skilltree" class="page-view hidden space-y-6">
+                    <div>
+                        <h1 class="text-2xl font-extrabold text-white">Clinical Skill Mastery Tree</h1>
+                        <p class="text-xs text-silver mt-1">Interactive competency tree. Master cases and pass 10-MCQ tests to unlock higher clinical tiers.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-2xl space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                            <!-- Cardiology Branch -->
+                            <div class="bg-navy-deep p-4 rounded-xl border border-navy-border text-center space-y-4">
+                                <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center mx-auto text-xl">
+                                    <i class="fa-solid fa-heart-pulse"></i>
+                                </div>
+                                <h3 class="font-bold text-white text-sm">Cardiovascular Tier</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="p-2 rounded bg-green-500/20 border border-green-500/40 text-green-300 font-semibold">✓ Basic ECG Interpretation</div>
+                                    <div class="p-2 rounded bg-green-500/20 border border-green-500/40 text-green-300 font-semibold">✓ STEMI Protocol Management</div>
+                                    <div class="p-2 rounded bg-cyan/20 border border-cyan text-cyan font-bold">★ Complex Arrhythmias (Current)</div>
+                                </div>
+                            </div>
+
+                            <!-- Neurology Branch -->
+                            <div class="bg-navy-deep p-4 rounded-xl border border-navy-border text-center space-y-4">
+                                <div class="w-12 h-12 rounded-full bg-cyan/20 text-cyan border border-cyan/40 flex items-center justify-center mx-auto text-xl">
+                                    <i class="fa-solid fa-brain"></i>
+                                </div>
+                                <h3 class="font-bold text-white text-sm">Neurological Tier</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="p-2 rounded bg-green-500/20 border border-green-500/40 text-green-300 font-semibold">✓ Acute Ischemic Stroke tPA</div>
+                                    <div class="p-2 rounded bg-navy-base border border-navy-border text-silver">🔒 Subarachnoid Hemorrhage</div>
+                                    <div class="p-2 rounded bg-navy-base border border-navy-border text-silver">🔒 Intracranial Pressure Crisis</div>
+                                </div>
+                            </div>
+
+                            <!-- Emergency Surgery Branch -->
+                            <div class="bg-navy-deep p-4 rounded-xl border border-navy-border text-center space-y-4">
+                                <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center mx-auto text-xl">
+                                    <i class="fa-solid fa-scalpel"></i>
+                                </div>
+                                <h3 class="font-bold text-white text-sm">Emergency Surgery Tier</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="p-2 rounded bg-green-500/20 border border-green-500/40 text-green-300 font-semibold">✓ Acute Appendicitis</div>
+                                    <div class="p-2 rounded bg-navy-base border border-navy-border text-silver">🔒 Tension Pneumothorax Chest Tube</div>
+                                    <div class="p-2 rounded bg-navy-base border border-navy-border text-silver">🔒 Ruptured Abdominal Aortic Aneurysm</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 9: PROGRESS & ANALYTICS -->
+                <section id="page-progress" class="page-view hidden space-y-6">
+                    <div>
+                        <h1 class="text-2xl font-extrabold text-white">Progress & Performance Analytics</h1>
+                        <p class="text-xs text-silver mt-1">Detailed statistical evaluation of your clinical learning accuracy and test performance.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Simulated Canvas Chart 1 -->
+                        <div class="glass-card p-5 rounded-2xl space-y-3">
+                            <h3 class="text-sm font-bold text-white">Weekly Case Activity & Scores</h3>
+                            <div class="h-48 flex items-end justify-between gap-2 px-4 py-2 bg-navy-deep rounded-xl border border-navy-border">
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-cyan h-[60%] rounded-t"></div><span class="text-[10px] text-silver">Mon</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-cyan h-[80%] rounded-t"></div><span class="text-[10px] text-silver">Tue</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-electric h-[45%] rounded-t"></div><span class="text-[10px] text-silver">Wed</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-cyan h-[90%] rounded-t"></div><span class="text-[10px] text-silver">Thu</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-cyan h-[75%] rounded-t"></div><span class="text-[10px] text-silver">Fri</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-electric h-[30%] rounded-t"></div><span class="text-[10px] text-silver">Sat</span></div>
+                                <div class="w-full flex flex-col items-center gap-1"><div class="w-full bg-cyan h-[85%] rounded-t"></div><span class="text-[10px] text-silver">Sun</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Specialty Mastery Breakdown -->
+                        <div class="glass-card p-5 rounded-2xl space-y-3">
+                            <h3 class="text-sm font-bold text-white">Specialty Mastery Breakdown</h3>
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <div class="flex justify-between text-silver mb-1"><span>Cardiology</span><span class="text-cyan font-bold">92%</span></div>
+                                    <div class="w-full bg-navy-deep h-2 rounded-full overflow-hidden border border-navy-border"><div class="bg-cyan h-full w-[92%]"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-silver mb-1"><span>Emergency Medicine</span><span class="text-electric font-bold">85%</span></div>
+                                    <div class="w-full bg-navy-deep h-2 rounded-full overflow-hidden border border-navy-border"><div class="bg-electric h-full w-[85%]"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-silver mb-1"><span>Neurology</span><span class="text-amber-400 font-bold">74%</span></div>
+                                    <div class="w-full bg-navy-deep h-2 rounded-full overflow-hidden border border-navy-border"><div class="bg-amber-400 h-full w-[74%]"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION 10: CERTIFICATES -->
+                <section id="page-certificates" class="page-view hidden space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white">Educational Achievement Certificates</h1>
+                            <p class="text-xs text-silver mt-1">Official verified completion credentials for medical residency portfolios.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Certificate Generator View -->
+                        <div class="glass-card p-6 rounded-2xl border border-cyan/40 space-y-4 text-center relative overflow-hidden" id="certificate-print-area">
+                            <div class="border-2 border-dashed border-cyan/40 p-6 rounded-xl space-y-4 bg-navy-deep/80">
+                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-cyan/20 text-cyan text-2xl">
+                                    <i class="fa-solid fa-award"></i>
+                                </div>
+                                <h2 class="text-xl font-extrabold text-white tracking-widest uppercase">CERTIFICATE OF CLINICAL EXCELLENCE</h2>
+                                <p class="text-xs text-silver">This is to officially certify that</p>
+                                <h3 class="text-2xl font-bold text-cyan">Dr. Alex Rivera</h3>
+                                <p class="text-xs text-silver max-w-md mx-auto">
+                                    Has successfully completed and passed the required 10-MCQ assessments and VR simulations for the advanced clinical track in:
+                                </p>
+                                <p class="text-base font-bold text-white uppercase tracking-wider">Emergency Cardiology & STEMI Protocol Simulation</p>
+                                
+                                <div class="flex justify-between items-center pt-6 text-[10px] text-silver border-t border-navy-border">
+                                    <div>
+                                        <p class="font-mono text-cyan">ID: CLINX-CERT-2026-994</p>
+                                        <p>Date: October 20, 2026</p>
+                                    </div>
+                                    <div class="w-12 h-12 bg-white p-1 rounded">
+                                        <!-- Simulated QR code -->
+                                        <div class="w-full h-full bg-black"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onclick="window.print()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-electric to-cyan text-white font-bold text-xs shadow-lg">
+                                <i class="fa-solid fa-print mr-2"></i> Print / Export Official Certificate PDF
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global App State
+        let currentUser = null;
+        let activePage = 'home';
+        let activeModalTab = 'overview';
+        let currentCase = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let flashcardIndex = 0;
+        let threeScene, threeCamera, threeRenderer, threeMesh;
+
+        // Sample Data: 350 Case Library Seed
+        const medicalCases = [
+            { id: 'CASE-001', title: 'Acute Inferior Wall Myocardial Infarction', age: '58M', specialty: 'Cardiology', category: 'Critical', difficulty: 'High-Risk', status: 'Completed', score: '90%' },
+            { id: 'CASE-002', title: 'Acute Ischemic Stroke (Left MCA Occlusion)', age: '64F', specialty: 'Neurology', category: 'Time-Critical', difficulty: 'High-Risk', status: 'Pending', score: '—' },
+            { id: 'CASE-003', title: 'Acute Appendicitis with Localized Peritonitis', age: '24M', specialty: 'General Surgery', category: 'Critical', difficulty: 'Intermediate', status: 'Completed', score: '100%' },
+            { id: 'CASE-004', title: 'Pediatric Status Asthmaticus Response', age: '7F', specialty: 'Paediatrics', category: 'Time-Critical', difficulty: 'Intermediate', status: 'Pending', score: '—' },
+            { id: 'CASE-005', title: 'Tension Pneumothorax Post-Trauma', age: '31M', specialty: 'Emergency Medicine', category: 'Critical', difficulty: 'High-Risk', status: 'Completed', score: '80%' },
+            { id: 'CASE-006', title: 'Takotsubo Cardiomyopathy (Broken Heart)', age: '68F', specialty: 'Cardiology', category: 'Rare', difficulty: 'Intermediate', status: 'Pending', score: '—' },
+            { id: 'CASE-007', title: 'Pheochromocytoma Hypertensive Crisis', age: '45M', specialty: 'Rare', category: 'One-in-a-Million', difficulty: 'High-Risk', status: 'Pending', score: '—' },
+            { id: 'CASE-008', title: 'Pulmonary Embolism (Saddle Embolus)', age: '52F', specialty: 'Respiratory', category: 'Time-Critical', difficulty: 'High-Risk', status: 'Completed', score: '90%' }
+        ];
+
+        // Generate remaining 342 dynamic cases for complete 350 database framework
+        for(let i = 9; i <= 350; i++) {
+            const specs = ['Cardiology', 'Neurology', 'Emergency Medicine', 'General Surgery', 'Paediatrics', 'Respiratory'];
+            const diffs = ['Basic', 'Intermediate', 'High-Risk'];
+            const cats = ['Critical', 'Rare', 'Time-Critical', 'One-in-a-Million'];
+            const spec = specs[i % specs.length];
+            const diff = diffs[i % diffs.length];
+            const cat = cats[i % cats.length];
+            medicalCases.push({
+                id: `CASE-${String(i).padStart(3, '0')}`,
+                title: `${spec} Clinical Scenario Variant ${i}`,
+                age: `${20 + (i % 60)}${i % 2 === 0 ? 'M' : 'F'}`,
+                specialty: spec,
+                category: cat,
+                difficulty: diff,
+                status: i < 43 ? 'Completed' : 'Pending',
+                score: i < 43 ? '80%' : '—'
+            });
+        }
+
+        // VR Cases Seed
+        const vrCases = [
+            { id: 'VR-01', title: 'Emergency Airway Intubation', specialty: 'Emergency Medicine' },
+            { id: 'VR-02', title: 'Trauma Bay Resuscitation', specialty: 'Emergency Medicine' },
+            { id: 'VR-03', title: 'Acute STEMI Cath Lab Prep', specialty: 'Cardiology' },
+            { id: 'VR-04', title: 'Laparoscopic Appendectomy', specialty: 'General Surgery' },
+            { id: 'VR-05', title: 'Stroke Thrombolysis Protocol', specialty: 'Neurology' }
+        ];
+
+        // Flashcards Seed
+        const flashcards = [
+            { q: "What is the gold standard biomarker for acute myocardial necrosis?", a: "High-Sensitivity Cardiac Troponin I or T." },
+            { q: "What ECG finding defines an acute STEMI?", a: "ST-segment elevation ≥1 mm in two anatomically contiguous leads." },
+            { q: "First-line immediate drug therapy for anaphylactic shock?", a: "Epinephrine 0.3-0.5 mg IM (1:1000) in outer mid-thigh." }
+        ];
+
+        // Splash Screen Logic
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const logo = document.getElementById('splash-logo-container');
+                if (logo) logo.classList.remove('opacity-0', 'translate-y-4');
+            }, 300);
+
+            setTimeout(() => {
+                skipSplash();
+            }, 2500);
+        });
+
+        function skipSplash() {
+            const splash = document.getElementById('splash-screen');
+            const auth = document.getElementById('auth-screen');
+            if (splash) splash.classList.add('opacity-0');
+            setTimeout(() => {
+                if (splash) splash.classList.add('hidden');
+                if (auth) auth.classList.remove('hidden');
+            }, 600);
+        }
+
+        // Auth Functions
+        function togglePassword() {
+            const input = document.getElementById('login-password');
+            const icon = document.getElementById('password-toggle-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function fillDemoCredentials() {
+            document.getElementById('login-id').value = 'STU-98231';
+            document.getElementById('login-password').value = 'clinX2026!';
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('login-id').value;
+            const pwd = document.getElementById('login-password').value;
+
+            if (id && pwd) {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                initApp();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        // App Initializer
+        function initApp() {
+            renderHomeCases();
+            renderLearnCases();
+            renderVRCases();
+            init3DAnatomy();
+        }
+
+        // Navigation Engine
+        function navigateTo(pageId) {
+            activePage = pageId;
+            document.querySelectorAll('.page-view').forEach(p => p.classList.add('hidden'));
+            const target = document.getElementById(`page-${pageId}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                if (btn.dataset.page === pageId) {
+                    btn.className = 'nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-cyan bg-electric/10 border border-electric/20';
+                } else {
+                    btn.className = 'nav-item w-full flex items-center px-3 py-2.5 text-xs font-semibold rounded-lg text-silver hover:text-white hover:bg-navy-card';
+                }
+            });
+        }
+
+        // Home Dashboard Renderers
+        function renderHomeCases() {
+            const container = document.getElementById('home-cases-container');
+            if (!container) return;
+
+            const selected = medicalCases.slice(0, 3);
+            container.innerHTML = selected.map(c => `
+                <div class="glass-card p-4 rounded-xl border border-navy-border space-y-3 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center text-[10px] mb-2">
+                            <span class="font-mono bg-electric/20 text-cyan px-2 py-0.5 rounded font-bold">${c.id}</span>
+                            <span class="text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">${c.difficulty}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white line-clamp-2">${c.title}</h4>
+                        <p class="text-[11px] text-silver mt-1">Patient: ${c.age} • ${c.specialty}</p>
+                    </div>
+                    <button onclick="openCaseModal('${c.id}')" class="w-full py-2 rounded bg-navy-deep hover:bg-electric text-cyan hover:text-white border border-navy-border font-bold text-xs transition">
+                        Open Clinical Case <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Learn Cases Filter & Render Engine
+        function renderLearnCases(filteredList = medicalCases) {
+            const container = document.getElementById('cases-grid');
+            const countDisplay = document.getElementById('case-count-display');
+            if (countDisplay) countDisplay.textContent = filteredList.length;
+
+            if (!container) return;
+
+            // Render first 18 for high performance
+            const displayList = filteredList.slice(0, 18);
+
+            container.innerHTML = displayList.map(c => `
+                <div class="glass-card p-4 rounded-xl space-y-3 flex flex-col justify-between border border-navy-border">
+                    <div>
+                        <div class="flex justify-between items-center text-[10px] mb-2">
+                            <span class="font-mono text-cyan bg-electric/20 px-2 py-0.5 rounded font-bold">${c.id}</span>
+                            <span class="${c.status === 'Completed' ? 'text-green-400 bg-green-400/10' : 'text-silver bg-navy-deep'} px-2 py-0.5 rounded">${c.status}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-white leading-snug">${c.title}</h4>
+                        <div class="flex items-center space-x-2 text-[10px] text-silver mt-2">
+                            <span><i class="fa-solid fa-user-doctor text-cyan"></i> ${c.age}</span>
+                            <span>•</span>
+                            <span>${c.specialty}</span>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-navy-border/60 flex items-center justify-between">
+                        <span class="text-[10px] text-silver">${c.category}</span>
+                        <button onclick="openCaseModal('${c.id}')" class="px-3 py-1.5 rounded bg-electric text-white text-xs font-bold hover:opacity-90">
+                            Launch Scenario
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCases() {
+            const query = document.getElementById('case-search').value.toLowerCase();
+            const specialty = document.getElementById('filter-specialty').value;
+            const difficulty = document.getElementById('filter-difficulty').value;
+            const category = document.getElementById('filter-category').value;
+            const status = document.getElementById('filter-status').value;
+
+            const filtered = medicalCases.filter(c => {
+                const matchQuery = c.title.toLowerCase().includes(query) || c.id.toLowerCase().includes(query);
+                const matchSpec = specialty === 'all' || c.specialty === specialty;
+                const matchDiff = difficulty === 'all' || c.difficulty === difficulty;
+                const matchCat = category === 'all' || c.category === category;
+                const matchStatus = status === 'all' || c.status === status;
+                return matchQuery && matchSpec && matchDiff && matchCat && matchStatus;
+            });
+
+            renderLearnCases(filtered);
+        }
+
+        function resetCaseFilters() {
+            document.getElementById('case-search').value = '';
+            document.getElementById('filter-specialty').value = 'all';
+            document.getElementById('filter-difficulty').value = 'all';
+            document.getElementById('filter-category').value = 'all';
+            document.getElementById('filter-status').value = 'all';
+            renderLearnCases(medicalCases);
+        }
+
+        // Case Modal & Interactive Simulation
+        function openCaseModal(caseId) {
+            currentCase = medicalCases.find(c => c.id === caseId) || medicalCases[0];
+            document.getElementById('modal-case-id').textContent = currentCase.id;
+            document.getElementById('modal-case-title').textContent = currentCase.title;
+            document.getElementById('modal-patient-age').textContent = currentCase.age;
+
+            render10MCQs();
+            switchModalTab('overview');
+            document.getElementById('case-modal').classList.remove('hidden');
+        }
+
+        function closeCaseModal() {
+            document.getElementById('case-modal').classList.add('hidden');
+        }
+
+        function switchModalTab(tabId) {
+            activeModalTab = tabId;
+            document.querySelectorAll('.modal-tab-view').forEach(v => v.classList.add('hidden'));
+            const target = document.getElementById(`mtab-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+                if (btn.dataset.mtab === tabId) {
+                    btn.className = 'modal-tab-btn px-4 py-3 text-cyan border-b-2 border-cyan font-bold';
+                } else {
+                    btn.className = 'modal-tab-btn px-4 py-3 text-silver hover:text-white';
+                }
+            });
+        }
+
+        function sendSimAction(actionType) {
+            const chatBox = document.getElementById('sim-chat-box');
+            if (!chatBox) return;
+
+            let reply = "";
+            if (actionType === 'ask_radiation') {
+                reply = "Patient: 'Yes doctor! The pain goes straight up into my left jaw and down my left arm.'";
+            } else if (actionType === 'order_ecg') {
+                reply = "Nurse: 'ECG Completed. ST-segment elevation of 3.5mm noted in leads II, III, and aVF.'";
+                document.getElementById('sim-hr').textContent = '112 bpm';
+            } else if (actionType === 'administer_aspirin') {
+                reply = "Pharmacist: 'Aspirin 325mg chewed given. Patient reports slight pain reduction.'";
+                document.getElementById('sim-bp').textContent = '130/84';
+            } else if (actionType === 'order_troponin') {
+                reply = "Lab: 'STAT High-Sensitivity Troponin I is 4.8 ng/mL (Significantly Elevated).'";
+            }
+
+            chatBox.innerHTML += `
+                <div class="bg-navy-base p-3 rounded-lg border border-navy-border text-silver mt-2">
+                    <p class="font-semibold text-cyan text-[11px]"><i class="fa-solid fa-notes-medical mr-1"></i> Simulation Result:</p>
+                    <p class="mt-1">${reply}</p>
+                </div>
+            `;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Mystery Mode
+        function revealMysteryStep(stepNum) {
+            if (stepNum === 2) document.getElementById('mystery-step-2').classList.remove('hidden');
+            if (stepNum === 3) document.getElementById('mystery-step-3').classList.remove('hidden');
+        }
+
+        function checkMysteryDiagnosis() {
+            alert('Diagnosis Correct! Earned +100 Diagnostic Reasoning Points.');
+        }
+
+        // 10-MCQ Engine
+        function render10MCQs() {
+            const container = document.getElementById('mcq-container');
+            if (!container) return;
+
+            let html = '';
+            for(let i = 1; i <= 10; i++) {
+                html += `
+                    <div class="bg-navy-deep p-4 rounded-xl border border-navy-border space-y-2 text-xs">
+                        <p class="font-bold text-white"><span class="text-cyan font-mono">Q${i}.</span> What is the immediate priority intervention for this clinical presentation?</p>
+                        <div class="space-y-1.5 text-silver pl-2">
+                            <label class="flex items-center space-x-2"><input type="radio" name="q${i}" value="A" class="text-cyan"> <span>A) Option A: Administer sublingual nitroglycerin and monitor</span></label>
+                            <label class="flex items-center space-x-2"><input type="radio" name="q${i}" value="B" class="text-cyan" checked> <span>B) Option B: Stat 12-lead ECG, Aspirin 325mg, and Cath Lab activation</span></label>
+                            <label class="flex items-center space-x-2"><input type="radio" name="q${i}" value="C" class="text-cyan"> <span>C) Option C: Discharge home with outpatient referral</span></label>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function submitMCQTest() {
+            const resultsBox = document.getElementById('test-results-box');
+            resultsBox.classList.remove('hidden');
+            resultsBox.innerHTML = `
+                <p class="text-lg font-bold text-green-400"><i class="fa-solid fa-circle-check mr-2"></i> Test Passed: 9 / 10 (90%)</p>
+                <p class="text-xs text-silver">Requirements met for Case Mastery & Skill Tree Progress.</p>
+            `;
+        }
+
+        // Record & Analyse (WebCam MediaRecorder API)
+        async function startWebcamRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const videoEl = document.getElementById('webcam-preview');
+                document.getElementById('webcam-placeholder').classList.add('hidden');
+                videoEl.classList.remove('hidden');
+                videoEl.srcObject = stream;
+
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.start();
+
+                document.getElementById('rec-indicator').classList.remove('hidden');
+                document.getElementById('btn-start-rec').disabled = true;
+                document.getElementById('btn-stop-rec').disabled = false;
+                document.getElementById('btn-stop-rec').classList.remove('opacity-50');
+                document.getElementById('rec-status-text').textContent = 'Recording live clinical presentation...';
+            } catch (err) {
+                alert('Camera permission denied or unavailable. Running in simulated recording mode.');
+            }
+        }
+
+        function stopWebcamRecording() {
+            if (mediaRecorder) mediaRecorder.stop();
+            document.getElementById('rec-indicator').classList.add('hidden');
+            document.getElementById('rec-status-text').textContent = 'Recording saved to library.';
+            
+            const list = document.getElementById('recordings-list');
+            list.innerHTML += `
+                <div class="bg-navy-deep p-3 rounded-xl border border-navy-border flex items-center justify-between mt-2">
+                    <div>
+                        <p class="text-xs font-bold text-white">Live Session Practice</p>
+                        <p class="text-[10px] text-silver mt-0.5">Recorded Just Now</p>
+                    </div>
+                    <button onclick="runAiAnalysis('Live Session Practice')" class="px-2.5 py-1.5 rounded bg-cyan/10 border border-cyan/30 text-cyan font-bold text-[10px]">
+                        Analyse Session
+                    </button>
+                </div>
+            `;
+        }
+
+        function runAiAnalysis(title) {
+            document.getElementById('ai-analysis-modal').classList.remove('hidden');
+        }
+
+        // VR Hub Renderer
+        function renderVRCases() {
+            const container = document.getElementById('vr-cases-grid');
+            if (!container) return;
+
+            container.innerHTML = vrCases.map(v => `
+                <div class="glass-card p-5 rounded-xl border border-navy-border space-y-3">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-cyan font-mono font-bold">${v.id}</span>
+                        <span class="text-purple-400"><i class="fa-solid fa-vr-cardboard"></i> WebXR Ready</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-white">${v.title}</h4>
+                    <p class="text-xs text-silver">Specialty: ${v.specialty}</p>
+                    <button onclick="alert('Launching VR Simulation for ${v.title}')" class="w-full py-2 bg-gradient-to-r from-electric to-cyan text-white font-bold text-xs rounded-lg shadow">
+                        Launch VR Experience
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function toggleVRConnection() {
+            const btn = document.getElementById('btn-vr-connect');
+            const txt = document.getElementById('vr-status-text');
+            if (btn.textContent.includes('Connect')) {
+                btn.textContent = 'Disconnect VR';
+                txt.textContent = 'Connected: Oculus Quest 3 / WebXR';
+                txt.className = 'text-[10px] text-green-400 font-bold';
+            } else {
+                btn.textContent = 'Connect VR';
+                txt.textContent = 'WebXR Ready / Simulated';
+                txt.className = 'text-[10px] text-silver';
+            }
+        }
+
+        // Three.js 3D Anatomy Engine
+        function init3DAnatomy() {
+            const container = document.getElementById('anatomy-canvas-container');
+            if (!container) return;
+
+            threeScene = new THREE.Scene();
+            threeCamera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            threeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            
+            threeRenderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(threeRenderer.domElement);
+
+            // Create stylized 3D Heart geometry representation
+            const geometry = new THREE.IcosahedronGeometry(2, 2);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x3B82F6,
+                wireframe: true,
+                emissive: 0x061225
+            });
+            threeMesh = new THREE.Mesh(geometry, material);
+            threeScene.add(threeMesh);
+
+            const light = new THREE.DirectionalLight(0x48D9FF, 1.5);
+            light.position.set(5, 5, 5).normalize();
+            threeScene.add(light);
+
+            threeCamera.position.z = 5;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                if (threeMesh) {
+                    threeMesh.rotation.x += 0.005;
+                    threeMesh.rotation.y += 0.01;
+                }
+                threeRenderer.render(threeScene, threeCamera);
+            }
+            animate();
+        }
+
+        function loadAnatomyModel(organ) {
+            if (organ === 'heart') {
+                threeMesh.material.color.setHex(0x3B82F6);
+                document.getElementById('anatomy-organ-title').textContent = 'Cardiovascular System — Heart';
+            } else if (organ === 'brain') {
+                threeMesh.material.color.setHex(0x48D9FF);
+                document.getElementById('anatomy-organ-title').textContent = 'Central Nervous System — Brain';
+            } else if (organ === 'lungs') {
+                threeMesh.material.color.setHex(0xA8B5C7);
+                document.getElementById('anatomy-organ-title').textContent = 'Respiratory System — Lungs';
+            }
+        }
+
+        // Notes & Flashcards Logic
+        function saveCurrentNote() {
+            alert('Note saved to personal cloud library.');
+        }
+
+        function flipFlashcard() {
+            document.getElementById('flashcard-box').classList.toggle('flipped');
+        }
+
+        function nextFlashcard(remembered) {
+            document.getElementById('flashcard-box').classList.remove('flipped');
+            flashcardIndex = (flashcardIndex + 1) % flashcards.length;
+            
+            setTimeout(() => {
+                document.getElementById('card-question').textContent = flashcards[flashcardIndex].q;
+                document.getElementById('card-answer').textContent = flashcards[flashcardIndex].a;
+                document.getElementById('flashcard-index').textContent = flashcardIndex + 1;
+            }, 300);
+        }
+
+        // AI Mentor Engine
+        function sendMentorMessage() {
+            const input = document.getElementById('mentor-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const body = document.getElementById('mentor-chat-body');
+            body.innerHTML += `
+                <div class="bg-electric/20 p-3 rounded-xl border border-electric/30 max-w-lg text-white ml-auto space-y-1">
+                    <p class="text-cyan font-bold text-[10px]">Dr. Rivera:</p>
+                    <p>${msg}</p>
+                </div>
+            `;
+            input.value = '';
+
+            setTimeout(() => {
+                body.innerHTML += `
+                    <div class="bg-navy-deep p-3 rounded-xl border border-navy-border max-w-lg text-silver space-y-1">
+                        <p class="text-cyan font-bold text-[10px]">Dr. ClinX AI:</p>
+                        <p>Great medical query! Based on standard clinical guidelines, always evaluate ECG lead involvement (II, III, aVF vs V1-V4) to localize cardiac ischemia before starting thrombolytics.</p>
+                    </div>
+                `;
+                body.scrollTop = body.scrollHeight;
+            }, 800);
+        }
+
+        function toggleMobileSidebar() {
+            const sb = document.getElementById('sidebar');
+            sb.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
